@@ -3,62 +3,69 @@ import json
 import os
 import random
 
-start = True
-while start:
-    user = input("Do you want to draw a Pokémon? Type 'yes' or 'no': \n")
-    if user.lower() == "yes":
-        pokeid = random.randint(1, 1025)  # You can change this ID to fetch different Pokémon
+def fetch_pokemon_data(pokeid):
+    """Fetch Pokémon data from PokeAPI."""
+    try:
+        response = requests.get(f"https://pokeapi.co/api/v2/pokemon/{pokeid}")
+        response.raise_for_status()
+        poke_dict = response.json()
+        return {
+            "id": poke_dict["id"],
+            "name": poke_dict["name"],
+            "height": poke_dict["height"],
+            "weight": poke_dict["weight"]
+        }
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Pokémon data: {e}")
+        return None
 
+def load_existing_data(file_path):
+    """Load existing Pokémon data from JSON file if it exists."""
+    if os.path.exists(file_path):
         try:
-            # Fetch Pokémon data from PokeAPI
-            poke = requests.get(f"https://pokeapi.co/api/v2/pokemon/{pokeid}")
-            poke.raise_for_status()  # Raises an error for bad responses
-            poke_dict = poke.json()
+            with open(file_path, 'r') as file:
+                return json.load(file)
+        except json.JSONDecodeError:
+            return {}
+    return {}
 
-            # Create a dictionary with Pokémon information
-            new_data = {
-                "id": poke_dict["id"],
-                "name": poke_dict["name"],
-                "height": poke_dict["height"],
-                "weight": poke_dict["weight"]
-            }
+def save_data(file_path, data):
+    """Save Pokémon data to JSON file."""
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
 
-            # File path
-            file_path = 'poke.json'
+def display_pokemon_data(data):
+    """Display Pokémon data in a nicely formatted way."""
+    print("\nPokémon Data:")
+    print("=" * 30)
+    print(f"Name: {data['name'].capitalize()}")
+    print(f"ID: {data['id']}")
+    print(f"Height: {data['height']} decimeters")
+    print(f"Weight: {data['weight']} hectograms")
+    print("=" * 30)
 
-            # Check if the file exists
-            if os.path.exists(file_path):
-                # Read existing data
-                with open(file_path, 'r') as f:
-                    try:
-                        existing_data = json.load(f)
-                    except json.JSONDecodeError:
-                        existing_data = {}
-            else:
-                existing_data = {}
+def main():
+    file_path = 'poke.json'
+    start = True
 
-            # Check if the Pokémon ID already exists in the data
-            if str(new_data["id"]) not in existing_data:
-                # Append new data only if the ID does not already exist
-                existing_data[str(new_data["id"])] = new_data
+    while start:
+        user = input("Do you want to draw a Pokémon? Type 'yes' or 'no': \n").strip().lower()
+        if user == "yes":
+            pokeid = random.randint(1, 1025)
+            new_data = fetch_pokemon_data(pokeid)
 
-                # Write the updated data back to the JSON file
-                with open(file_path, 'w') as f:
-                    json.dump(existing_data, f, indent=4)
+            if new_data:
+                existing_data = load_existing_data(file_path)
 
-            # Print Pokémon data in a nicely formatted way
-            print("\nPokémon Data:")
-            print("=" * 30)
-            print(f"Name: {new_data['name'].capitalize()}")  # Capitalize the name for nicer output
-            print(f"ID: {new_data['id']}")
-            print(f"Height: {new_data['height']} decimeters")
-            print(f"Weight: {new_data['weight']} hectograms")
-            print("=" * 30)
+                if str(new_data["id"]) not in existing_data:
+                    existing_data[str(new_data["id"])] = new_data
+                    save_data(file_path, existing_data)
 
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching Pokémon data: {e}")
-            continue  # Skip to the next iteration of the loop
+                display_pokemon_data(new_data)
 
-    else:
-        print("bye!")
-        start = False
+        else:
+            print("Goodbye!")
+            start = False
+
+if __name__ == "__main__":
+    main()
